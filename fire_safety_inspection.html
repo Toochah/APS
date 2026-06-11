@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#d32f2f">
+    <title>Осмотр Пожарной Безопасности</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { 
+            --primary: #d32f2f; 
+            --success: #4caf50; 
+            --warning: #ff9800; 
+            --danger: #f44336; 
+            --bg: #f5f5f5; 
+            --card-bg: #ffffff; 
+            --text: #333333; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); padding-bottom: 70px; }
+        .header { background: linear-gradient(135deg, #d32f2f, #b71c1c); color: white; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 100; }
+        .header h1 { margin: 0; font-size: 18px; }
+        .header .subtitle { font-size: 12px; opacity: 0.9; margin-top: 5px; }
+        .connection-status { font-size: 12px; margin-top: 5px; opacity: 0.9; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; display: inline-block; }
+        .status-dot.offline { background: #f44336; }
+        .container { padding: 15px; max-width: 800px; margin: 0 auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; background: #fafafa; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; background: #fff; }
+        .zone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .zone-btn { padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; text-align: center; font-size: 13px; cursor: pointer; }
+        .zone-btn.active { border-color: var(--primary); background: #ffebee; color: var(--primary); font-weight: bold; }
+        .priority-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .prio-btn { padding: 10px 5px; border: none; border-radius: 6px; color: white; font-size: 11px; cursor: pointer; opacity: 0.5; }
+        .prio-btn.active { opacity: 1; transform: scale(1.05); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .prio-low { background: var(--success); }
+        .prio-med { background: var(--warning); }
+        .prio-high { background: var(--danger); }
+        .prio-crit { background: #9c27b0; }
+        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .photo-btn { padding: 15px; border: 2px dashed #ccc; border-radius: 8px; background: white; text-align: center; font-size: 13px; cursor: pointer; }
+        .photo-btn:active { background: #f0f0f0; border-color: var(--primary); }
+        #preview { max-width: 100%; margin-top: 10px; border-radius: 8px; display: none; }
+        .submit-bar { position: fixed; bottom: 70px; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 99; }
+        .submit-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; }
+        .submit-btn:disabled { background: #ccc; }
+        .toast { position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; }
+        .toast.show { opacity: 1; }
+        .scorecards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .scorecard { background: white; border-radius: 12px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .scorecard .number { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
+        .scorecard .label { font-size: 11px; color: #666; text-transform: uppercase; }
+        .scorecard.total .number { color: #d32f2f; }
+        .scorecard.critical .number { color: #f44336; }
+        .scorecard.active .number { color: #ff9800; }
+        .chart-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .chart-card h3 { font-size: 14px; margin-bottom: 15px; color: #333; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .chart-row { grid-template-columns: 1fr; } }
+        .critical-table { width: 100%; border-collapse: collapse; }
+        .critical-table th { background: #f5f5f5; padding: 10px; text-align: left; font-size: 12px; color: #666; }
+        .critical-table td { padding: 10px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .critical-table tr:last-child td { border-bottom: none; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 100; }
+        .nav-btn { flex: 1; padding: 10px; text-align: center; font-size: 11px; color: #666; text-decoration: none; border: none; background: none; cursor: pointer; }
+        .nav-btn.active { color: #d32f2f; font-weight: bold; }
+        .nav-btn span { font-size: 20px; display: block; margin-bottom: 3px; }
+        
+        /* Manage page styles */
+        .search-bar { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-bar input { flex: 1; }
+        .filter-row { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-btn { padding: 8px 15px; border: 1px solid #ddd; border-radius: 20px; background: white; font-size: 12px; cursor: pointer; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .defect-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #ccc; }
+        .defect-card.status-Новый { border-left-color: #f44336; }
+        .defect-card.status-В_работе { border-left-color: #ff9800; }
+        .defect-card.status-Исправлено { border-left-color: #4caf50; }
+        .defect-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .defect-id { font-weight: bold; font-size: 14px; color: var(--primary); }
+        .defect-priority { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; color: white; }
+        .defect-priority.Критический { background: #9c27b0; }
+        .defect-priority.Высокий { background: #f44336; }
+        .defect-priority.Средний { background: #ff9800; }
+        .defect-priority.Низкий { background: #4caf50; }
+        .defect-zone { font-size: 13px; color: #666; margin-bottom: 5px; }
+        .defect-desc { font-size: 13px; color: #333; margin-bottom: 10px; }
+        .defect-meta { font-size: 11px; color: #999; margin-bottom: 10px; }
+        .defect-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: white; }
+        .action-btn.fix { background: var(--success); }
+        .action-btn.progress { background: var(--warning); }
+        .action-btn.comment { background: #607d8b; }
+        .loading { text-align: center; padding: 30px; color: #999; }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+        .empty-state span { font-size: 48px; display: block; margin-bottom: 10px; }
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 12px; padding: 20px; width: 90%; max-width: 400px; }
+        .modal-content h3 { margin-bottom: 15px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .modal-actions button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .modal-actions .cancel { background: #eee; }
+        .modal-actions .confirm { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🔥 Осмотр Пожарной Безопасности</h1>
+    <div class="subtitle">Пожаротушение и пожарная сигнализация</div>
+    <div class="connection-status">
+        <span class="status-dot" id="netDot"></span>
+        <span id="netText">Онлайн</span>
+    </div>
+</div>
+
+<!-- PAGE 1: Inspection Form -->
+<div class="page active" id="page-inspection">
+    <div class="container">
+        <form id="inspectionForm">
+            <div class="card">
+                <span class="label">Дата осмотра</span>
+                <input type="date" id="date" required>
+                <span class="label" style="margin-top:10px">ФИО Инженера</span>
+                <input type="text" id="inspector" placeholder="Иванов Р." required>
+            </div>
+            <div class="card">
+                <span class="label">Объект осмотра</span>
+                <div class="zone-grid">
+                    <div class="zone-btn" onclick="selectZone(this, 'Пожаротушение')">🧯 Пожаротушение</div>
+                    <div class="zone-btn" onclick="selectZone(this, 'Пожарная сигнализация')">🚨 Сигнализация</div>
+                    <div class="zone-btn" onclick="selectZone(this, 'СПТ')">🛡️ СПТ</div>
+                    <div class="zone-btn" onclick="selectZone(this, 'Другое')">⚙️ Другое</div>
+                </div>
+                <input type="hidden" id="zone" required>
+            </div>
+            <div class="card">
+                <span class="label">Тип дефекта</span>
+                <select id="defectType">
+                    <option value="">-- Выберите --</option>
+                    <option value="Неисправность">Неисправность оборудования</option>
+                    <option value="Отсутствие">Отсутствие оборудования</option>
+                    <option value="Повреждение">Повреждение элемента</option>
+                    <option value="Нарушение доступа">Нарушение доступа к оборудованию</option>
+                    <option value="Некачественная маркировка">Некачественная маркировка</option>
+                    <option value="Нарушение герметичности">Нарушение герметичности</option>
+                    <option value="Протечка">Протечка в системе</option>
+                    <option value="Заблокированное оборудование">Заблокированное оборудование</option>
+                </select>
+            </div>
+            <div class="card">
+                <span class="label">Приоритет</span>
+                <div class="priority-grid">
+                    <button type="button" class="prio-btn prio-low" onclick="selectPriority(this, 'Низкий')">Низкий</button>
+                    <button type="button" class="prio-btn prio-med" onclick="selectPriority(this, 'Средний')">Средний</button>
+                    <button type="button" class="prio-btn prio-high" onclick="selectPriority(this, 'Высокий')">Высокий</button>
+                    <button type="button" class="prio-btn prio-crit" onclick="selectPriority(this, 'Критический')">Крит.</button>
+                </div>
+                <input type="hidden" id="priority" required>
+            </div>
+            <div class="card">
+                <span class="label">Описание дефекта</span>
+                <textarea id="description" rows="4" placeholder="Подробно опишите обнаруженный дефект..."></textarea>
+            </div>
+            <div class="card">
+                <span class="label">Рекомендации по устранению</span>
+                <textarea id="recommendations" rows="3" placeholder="Укажите рекомендации по устранению дефекта..."></textarea>
+            </div>
+            <div class="card">
+                <span class="label">Фотофиксация</span>
+                <div class="photo-grid">
+                    <div class="photo-btn" onclick="takePhoto()"><span style="font-size:24px">📷</span><br>Камера</div>
+                    <div class="photo-btn" onclick="uploadPhoto()"><span style="font-size:24px">🖼️</span><br>Галерея</div>
+                </div>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+                <input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handlePhoto(this)">
+                <img id="preview" alt="Предпросмотр">
+            </div>
+        </form>
+    </div>
+    <div class="submit-bar">
+        <button type="button" class="submit-btn" onclick="submitForm()" id="submitBtn">СОХРАНИТЬ И ОТПРАВИТЬ</button>
+    </div>
+</div>
+
+<!-- PAGE 2: Dashboard -->
+<div class="page" id="page-dashboard">
+    <div class="container">
+        <div class="scorecards">
+            <div class="scorecard total"><div class="number" id="totalCount">0</div><div class="label">Всего</div></div>
+            <div class="scorecard critical"><div class="number" id="criticalCount">0</div><div class="label">🔴 Крит.</div></div>
+            <div class="scorecard active"><div class="number" id="highCount">0</div><div class="label">🟡 Выс.</div></div>
+        </div>
+        <div class="chart-row">
+            <div class="chart-card"><h3>🧯 По системам</h3><canvas id="systemsChart"></canvas></div>
+            <div class="chart-card"><h3>📋 По типам дефектов</h3><canvas id="typesChart"></canvas></div>
+        </div>
+        <div class="chart-card"><h3>📈 Динамика по дням</h3><canvas id="timelineChart"></canvas></div>
+        <div class="chart-card"><h3>🎯 По приоритетам</h3><canvas id="priorityChart"></canvas></div>
+        <div class="chart-card">
+            <h3>🔴 Критические дефекты</h3>
+            <table class="critical-table" id="criticalTable">
+                <thead><tr><th>ID</th><th>Система</th><th>Описание</th><th>Дата</th></tr></thead>
+                <tbody><tr><td colspan="4" style="text-align:center;color:#999;">Загрузка...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- PAGE 3: Maintenance Tracking -->
+<div class="page" id="page-maintenance">
+    <div class="container">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Поиск по ID или описанию..." oninput="filterDefects()">
+        </div>
+        <div class="filter-row" id="filterRow">
+            <button class="filter-btn active" onclick="setFilter('Все')">Все</button>
+            <button class="filter-btn" onclick="setFilter('Новый')">🔴 Новые</button>
+            <button class="filter-btn" onclick="setFilter('В работе')">🟡 В работе</button>
+            <button class="filter-btn" onclick="setFilter('Исправлено')">✅ Исправлено</button>
+            <button class="filter-btn" onclick="setFilter('Критический')">🔴 Критические</button>
+        </div>
+        <div id="defectsList">
+            <div class="loading">⏳ Загрузка дефектов...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Comment Modal -->
+<div class="modal" id="commentModal">
+    <div class="modal-content">
+        <h3>💬 Добавить комментарий</h3>
+        <textarea id="commentText" rows="3" placeholder="Опишите, что было сделано..."></textarea>
+        <div class="modal-actions">
+            <button class="cancel" onclick="closeModal()">Отмена</button>
+            <button class="confirm" onclick="submitComment()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Navigation -->
+<div class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('inspection')"><span>📝</span>Осмотр</button>
+    <button class="nav-btn" onclick="showPage('dashboard')"><span>📊</span>Дашборд</button>
+    <button class="nav-btn" onclick="showPage('maintenance')"><span>🔧</span>Ремонт</button>
+</div>
+
+<div class="toast" id="toast">Сохранено</div>
+
+<script>
+    // API URL для Google Apps Script
+    const API_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec'; // ЗАМЕНИТЬ НА ВАШ ID СКРИПТА
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/gviz/tq?tqx=out:json'; // ЗАМЕНИТЬ НА ВАШ ID ТАБЛИЦЫ
+    
+    let allDefects = [];
+    let currentFilter = 'Все';
+    let currentCommentDefectId = null;
+
+    function showPage(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('page-' + page).classList.add('active');
+        event.target.closest('.nav-btn').classList.add('active');
+        if (page === 'dashboard') loadDashboard();
+        if (page === 'maintenance') loadDefects();
+    }
+
+    document.getElementById('date').valueAsDate = new Date();
+    function updateNetStatus() {
+        const isOnline = navigator.onLine;
+        document.getElementById('netDot').classList.toggle('offline', !isOnline);
+        document.getElementById('netText').innerText = isOnline ? 'Онлайн' : 'Офлайн (Данные в очереди)';
+    }
+    window.addEventListener('online', updateNetStatus);
+    window.addEventListener('offline', updateNetStatus);
+    updateNetStatus();
+
+    function selectZone(el, value) {
+        document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('zone').value = value;
+    }
+    function selectPriority(el, value) {
+        document.querySelectorAll('.prio-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('priority').value = value;
+    }
+    function takePhoto() { document.getElementById('cameraInput').click(); }
+    function uploadPhoto() { document.getElementById('galleryInput').click(); }
+
+    let photoData = null;
+    function handlePhoto(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_W = 1024;
+                    const scale = MAX_W / img.width;
+                    canvas.width = MAX_W;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    photoData = canvas.toDataURL('image/jpeg', 0.7);
+                    const preview = document.getElementById('preview');
+                    preview.src = photoData;
+                    preview.style.display = 'block';
+                }
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    const DB_NAME = 'FireSafetyDB';
+    const STORE_NAME = 'records';
+    function getDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    async function saveRecord(record) {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).add(record);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject();
+        });
+    }
+    async function getAllRecords() {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const req = tx.objectStore(STORE_NAME).getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject();
+        });
+    }
+    async function deleteRecord(id) {
+        const db = await getDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).delete(id);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject();
+        });
+    }
+
+    async function submitForm() {
+        const btn = document.getElementById('submitBtn');
+        const zone = document.getElementById('zone').value;
+        const priority = document.getElementById('priority').value;
+        if (!zone || !priority) { alert('Заполните систему и приоритет!'); return; }
+        btn.disabled = true;
+        btn.innerText = 'Сохранение...';
+        const record = {
+            date: document.getElementById('date').value,
+            inspector: document.getElementById('inspector').value,
+            system: zone,
+            defectType: document.getElementById('defectType').value,
+            priority: priority,
+            description: document.getElementById('description').value,
+            recommendations: document.getElementById('recommendations').value,
+            photo: photoData,
+            synced: false
+        };
+        await saveRecord(record);
+        showToast('✅ Сохранено');
+        if (navigator.onLine) await syncData();
+        document.getElementById('inspectionForm').reset();
+        document.querySelectorAll('.zone-btn, .prio-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('preview').style.display = 'none';
+        photoData = null;
+        btn.disabled = false;
+        btn.innerText = 'СОХРАНИТЬ И ОТПРАВИТЬ';
+        document.getElementById('date').valueAsDate = new Date();
+    }
+
+    async function syncData() {
+        const records = await getAllRecords();
+        const btn = document.getElementById('submitBtn');
+        for (const rec of records) {
+            if (rec.synced) continue;
+            btn.innerText = 'Синхронизация... (' + rec.id + ')';
+            try {
+                const response = await fetch(API_URL, { method: 'POST', body: JSON.stringify(rec) });
+                if (response.ok) await deleteRecord(rec.id);
+            } catch (e) { 
+                console.error('Ошибка синхронизации'); 
+                console.log('URL:', API_URL); 
+                console.error(e); 
+            }
+        }
+        btn.innerText = 'СОХРАНИТЬ И ОТПРАВИТЬ';
+    }
+    window.addEventListener('online', syncData);
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // Dashboard
+    let chartsInitialized = false;
+    async function loadDashboard() {
+        try {
+            const response = await fetch(SHEET_URL);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(47).slice(0, -2));
+            const rows = json.table.rows.map(r => r.c.map(c => c ? c.v : ''));
+            const records = rows.slice(1).map(r => ({
+                id: r[0], date: r[1], time: r[2], inspector: r[3],
+                system: r[4], defectType: r[5], priority: r[6],
+                description: r[7], photo: r[8], status: r[9], source: r[10]
+            }));
+            document.getElementById('totalCount').innerText = records.length;
+            document.getElementById('criticalCount').innerText = records.filter(r => r.priority === 'Критический').length;
+            document.getElementById('highCount').innerText = records.filter(r => r.priority === 'Высокий').length;
+            const systems = {}, types = {};
+            const priorities = { 'Низкий': 0, 'Средний': 0, 'Высокий': 0, 'Критический': 0 };
+            const dates = {};
+            records.forEach(r => {
+                systems[r.system] = (systems[r.system] || 0) + 1;
+                if(r.defectType) types[r.defectType] = (types[r.defectType] || 0) + 1;
+                if(priorities[r.priority] !== undefined) priorities[r.priority]++;
+                if(r.date) dates[r.date] = (dates[r.date] || 0) + 1;
+            });
+            const sortedDates = Object.keys(dates).sort();
+            const criticals = records.filter(r => r.priority === 'Критический');
+            const tbody = document.querySelector('#criticalTable tbody');
+            if (criticals.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999;">Нет критических дефектов ✅</td></tr>';
+            } else {
+                tbody.innerHTML = criticals.map(r => '<tr><td><strong>' + r.id + '</strong></td><td>' + r.system + '</td><td>' + r.description + '</td><td>' + r.date + '</td></tr>').join('');
+            }
+            if (chartsInitialized) { Chart.instances.forEach(c => c.destroy()); }
+            chartsInitialized = true;
+            new Chart(document.getElementById('systemsChart'), {
+                type: 'bar',
+                data: { labels: Object.keys(systems), datasets: [{ data: Object.values(systems), backgroundColor: ['#d32f2f','#2196f3','#4caf50','#ff9800'], borderRadius: 5 }] },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+            new Chart(document.getElementById('typesChart'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(types), datasets: [{ data: Object.values(types), backgroundColor: ['#f44336','#2196f3','#ff9800','#9c27b0','#4caf50','#00bcd4'] }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
+            });
+            new Chart(document.getElementById('timelineChart'), {
+                type: 'line',
+                data: { labels: sortedDates, datasets: [{ data: sortedDates.map(d => dates[d]), borderColor: '#d32f2f', backgroundColor: 'rgba(211,47,47,0.1)', fill: true, tension: 0.4, pointRadius: 4 }] },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+            new Chart(document.getElementById('priorityChart'), {
+                type: 'bar',
+                data: { labels: Object.keys(priorities), datasets: [{ data: Object.values(priorities), backgroundColor: ['#4caf50','#2196f3','#ff9800','#f44336'], borderRadius: 5 }] },
+                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+            });
+        } catch (e) { 
+            console.error('Ошибка загрузки дашборда:', e); 
+            showToast('❌ Ошибка загрузки данных');
+        }
+    }
+
+    // Maintenance Tracking
+    async function loadDefects() {
+        const list = document.getElementById('defectsList');
+        list.innerHTML = '<div class="loading">⏳ Загрузка дефектов...</div>';
+        
+        try {
+            const response = await fetch(SHEET_URL);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(47).slice(0, -2));
+            const rows = json.table.rows.map(r => r.c.map(c => c ? c.v : ''));
+            
+            allDefects = rows.slice(1).map(r => ({
+                id: r[0], date: r[1], time: r[2], inspector: r[3],
+                system: r[4], defectType: r[5], priority: r[6],
+                description: r[7], photo: r[8], status: r[9] || 'Новый', source: r[10]
+            })).reverse(); // Новые сверху
+            
+            renderDefects();
+        } catch (e) {
+            list.innerHTML = '<div class="empty-state"><span>❌</span>Ошибка загрузки данных</div>';
+        }
+    }
+
+    function renderDefects() {
+        const list = document.getElementById('defectsList');
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        
+        let filtered = allDefects.filter(d => {
+            const matchSearch = !search || 
+                d.id.toLowerCase().includes(search) || 
+                d.description.toLowerCase().includes(search) ||
+                d.system.toLowerCase().includes(search);
+            
+            let matchFilter = true;
+            if (currentFilter === 'Критический') {
+                matchFilter = d.priority === 'Критический';
+            } else {
+                matchFilter = d.status === currentFilter;
+            }
+            
+            return matchSearch && matchFilter;
+        });
+        
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="empty-state"><span>📭</span>Нет дефектов для отображения</div>';
+            return;
+        }
+        
+        list.innerHTML = filtered.map(d => {
+            const statusClass = d.status.replace(/\s/g, '_');
+            const priorityClass = d.priority;
+            
+            let actions = '';
+            if (d.status !== 'Исправлено') {
+                actions = `
+                    <button class="action-btn progress" onclick="updateStatus('${d.id}', 'В работе')">🔧 В работу</button>
+                    <button class="action-btn fix" onclick="updateStatus('${d.id}', 'Исправлено')">✅ Исправлено</button>
+                `;
+            } else {
+                actions = '<span style="color:#4caf50;font-size:12px;font-weight:bold;">✅ Исправлено</span>';
+            }
+            actions += `<button class="action-btn comment" onclick="openComment('${d.id}')">💬</button>`;
+            
+            return `
+                <div class="defect-card status-${statusClass}">
+                    <div class="defect-header">
+                        <span class="defect-id">🆔 ${d.id}</span>
+                        <span class="defect-priority ${priorityClass}">${d.priority}</span>
+                    </div>
+                    <div class="defect-zone">📍 ${d.system} | ${d.defectType}</div>
+                    <div class="defect-desc">${d.description}</div>
+                    <div class="defect-meta">📅 ${d.date} ${d.time || ''} | 👤 ${d.inspector} | 📌 ${d.status}</div>
+                    <div class="defect-actions">${actions}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function filterDefects() {
+        renderDefects();
+    }
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        renderDefects();
+    }
+
+    async function updateStatus(defectId, newStatus) {
+        if (newStatus === 'Исправлено') {
+            currentCommentDefectId = defectId;
+            document.getElementById('commentText').value = ''; // Очищаем поле!
+            document.getElementById('commentModal').classList.add('show');
+            return;
+        }
+        
+        try {
+            showToast('⏳ Обновление статуса...');
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ type: 'update_status', defectId: defectId, newStatus: newStatus })
+            });
+            showToast('✅ Статус обновлен');
+            loadDefects();
+        } catch (e) {
+            showToast('❌ Ошибка обновления');
+        }
+    }
+
+    function openComment(defectId) {
+        currentCommentDefectId = defectId;
+        document.getElementById('commentText').value = '';
+        document.getElementById('commentModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('commentModal').classList.remove('show');
+        currentCommentDefectId = null;
+    }
+
+    async function submitComment() {
+        const comment = document.getElementById('commentText').value;
+        if (!comment) { alert('Введите комментарий!'); return; }
+        
+        try {
+            showToast('⏳ Сохранение комментария...');
+            await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ type: 'update_status', defectId: currentCommentDefectId, newStatus: 'Исправлено', comment: comment })
+            });
+            showToast('✅ Комментарий сохранен');
+            closeModal();
+            loadDefects();
+        } catch (e) {
+            showToast('❌ Ошибка сохранения');
+        }
+    }
+    
+    // Инициализация приложения
+    document.getElementById('date').valueAsDate = new Date();
+</script>
+
+</body>
+</html>

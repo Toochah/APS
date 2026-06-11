@@ -1,0 +1,4 @@
+This is a placeholder file for the images directory.
+Actual images should be placed here, including:
+- logo.png (for service worker usage)
+- Other images used in the application

@@ -1,0 +1,29 @@
+{
+  "name": "fire-safety-inspection-pwa",
+  "version": "1.0.0",
+  "description": "PWA приложение для фиксации осмотров систем пожаротушения и пожарной сигнализации, а также отметки о выполнении восстановительных работ с использованием Google Sheets.",
+  "main": "fire_safety_inspection.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pwa",
+    "fire-safety",
+    "inspection",
+    "google-sheets",
+    "progressive-web-app",
+    "safety-management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/fire-safety-inspection-pwa.git"
+  }
+}
