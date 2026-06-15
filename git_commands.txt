@@ -1,0 +1,26 @@
+# Эти команды должны выполняться вручную в терминале/командной строке
+# Предполагается, что пользователь уже аутентифицирован в GitHub
+
+# Клонирование репозитория
+git clone https://github.com/Toochah/APS.git
+cd APS
+
+# Копирование файлов из проекта (пример для Unix-систем)
+cp ../fire_safety_inspection.html .
+cp ../manifest.json .
+cp ../sw.js .
+cp ../google_apps_script.gs .
+cp ../package.json .
+cp -r ../assets .
+cp -r ../styles .
+cp -r ../scripts .
+cp ../README.md ../SETUP_GUIDE.md ../DEPLOYMENT.md ../TESTING.md ../QUICK_START.md ../GITHUB_DEPLOY.md ../GITHUB_SETUP.md ../GITHUB_PUSH_INSTRUCTIONS.md .
+
+# Добавление файлов в Git
+git add .
+
+# Коммит изменений
+git commit -m "Добавлено PWA приложение для осмотра пожарной безопасности"
+
+# Пуш изменений в удалённый репозиторий
+git push origin main

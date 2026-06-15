@@ -4,7 +4,10 @@
   "description": "PWA приложение для фиксации осмотров систем пожаротушения и пожарной сигнализации, а также отметки о выполнении восстановительных работ с использованием Google Sheets.",
   "main": "fire_safety_inspection.html",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "test": "echo \"Проверьте TESTING.md для инструкций по тестированию приложения\"",
+    "serve": "http-server -o -p 8080",
+    "deploy": "echo \"См. GITHUB_DEPLOY.md для инструкций по деплою\""
   },
   "keywords": [
     "pwa",
@@ -17,13 +20,14 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "serve": "^14.2.1"
-  },
-  "engines": {
-    "node": ">=14.0.0"
+    "http-server": "^14.1.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/fire-safety-inspection-pwa.git"
-  }
+    "url": "https://github.com/yourusername/fire-safety-inspection-pwa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/fire-safety-inspection-pwa/issues"
+  },
+  "homepage": "https://github.com/yourusername/fire-safety-inspection-pwa#readme"
 }

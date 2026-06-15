@@ -2,6 +2,7 @@ const CACHE_NAME = 'fire-safety-pwa-v1';
 const urlsToCache = [
   '/',
   '/fire_safety_inspection.html',
+  '/new_feature.html', // New HTML file added to cache
   '/styles/main.css',
   '/scripts/app.js',
   '/assets/images/logo.png'
